@@ -32,8 +32,30 @@ const App: React.FC = () => {
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set());
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [hideGranular, setHideGranular] = useState(false);
+  
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fgRef = useRef<any>(null);
+
+  const filteredGraphData = React.useMemo(() => {
+    if (!hideGranular) return graphData;
+
+    const mainNodes = new Set(
+      graphData.nodes
+        .filter(n => n.label === 'Customer' || n.label === 'Order')
+        .map(n => n.id)
+    );
+
+    const nodes = graphData.nodes.filter(n => mainNodes.has(n.id));
+    const links = graphData.links.filter(l => {
+      const sourceId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+      const targetId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+      return mainNodes.has(sourceId) && mainNodes.has(targetId);
+    });
+
+    return { nodes, links };
+  }, [graphData, hideGranular]);
 
   useEffect(() => {
     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -90,13 +112,19 @@ const App: React.FC = () => {
           
           {/* Floating Controls */}
           <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-            <button className="flex items-center gap-2 bg-white px-3 py-2 rounded shadow-sm border border-gray-200 text-xs font-semibold hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => setIsMinimized(!isMinimized)}
+              className="flex items-center gap-2 bg-white px-3 py-2 rounded shadow-sm border border-gray-200 text-xs font-semibold hover:bg-gray-50 transition-colors"
+            >
               <Minimize2 size={14} />
-              Minimize
+              {isMinimized ? "Maximize" : "Minimize"}
             </button>
-            <button className="flex items-center gap-2 bg-black text-white px-3 py-2 rounded shadow-sm text-xs font-semibold hover:bg-gray-800 transition-colors">
+            <button 
+              onClick={() => setHideGranular(!hideGranular)}
+              className="flex items-center gap-2 bg-black text-white px-3 py-2 rounded shadow-sm text-xs font-semibold hover:bg-gray-800 transition-colors"
+            >
               <Layers size={14} />
-              Hide Granular Overlay
+              {hideGranular ? "Show Granular Overlay" : "Hide Granular Overlay"}
             </button>
           </div>
           
@@ -124,7 +152,7 @@ const App: React.FC = () => {
 
           <ForceGraph2D
             ref={fgRef}
-            graphData={graphData}
+            graphData={filteredGraphData}
             nodeColor={(node: any) => highlightNodes.has(node.id as string) ? '#22c55e' : (node.label === 'Customer' || node.label === 'Order' ? '#fca5a5' : '#60a5fa')}
             nodeRelSize={2.5}
             nodeLabel={(node: any) => `${node.label}: ${node.id}`}
@@ -138,8 +166,8 @@ const App: React.FC = () => {
         </div>
 
         {/* Chat Interface Section */}
-        <div className="w-[380px] flex flex-col bg-white overflow-hidden border-l border-gray-200 z-20 shadow-xl">
-          
+        <div className={`${isMinimized ? 'hidden' : 'w-[380px] flex'} flex-col bg-white overflow-hidden border-l border-gray-200 z-20 shadow-xl`}>
+
           <div className="p-4 border-b border-gray-100">
             <h2 className="text-[15px] font-bold text-gray-900">Chat with Graph</h2>
             <span className="text-[12px] text-gray-500">Order to Cash</span>
