@@ -33,9 +33,6 @@ def get_graph(node_id: str = None):
 
 @app.post("/query")
 def submit_query(request: QueryRequest):
-    # Process through the LLM engine for natural language
-    answer = generate_natural_language_response(request.question)
-    return {
-        "answer": answer,
-        "data": [] # Stub for raw query records highlighted on the frontend
-    }
+    # Process through the LLM engine for natural language text-to-sql output
+    result = generate_natural_language_response(request.question)
+    return result
