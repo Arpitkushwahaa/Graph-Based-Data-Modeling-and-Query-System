@@ -4,10 +4,11 @@ from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 
+# Load env variables FIRST before importing any modules that depend on them
+load_dotenv()
+
 from core.graph_builder import graph_builder
 from core.llm_engine import generate_natural_language_response
-
-load_dotenv()
 
 app = FastAPI(title="Graph Data Modeling System")
 

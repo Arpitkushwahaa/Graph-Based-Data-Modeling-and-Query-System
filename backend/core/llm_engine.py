@@ -2,9 +2,13 @@ import os
 import sqlite3
 import json
 import re
+from dotenv import load_dotenv
 from groq import Groq
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY", "placeholder"))
+# Load environment variables specific to this execution frame
+load_dotenv()
+
+# Initialize dynamically to ensure it picks up the true API key after dotenv runs
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "retail_graph.db")
 
 SCHEMA_INFO = """
@@ -52,6 +56,8 @@ def generate_natural_language_response(question: str):
         }
     
     # 1: Text to SQL
+    client = Groq(api_key=os.environ.get("GROQ_API_KEY", "placeholder"))
+    
     sql_prompt = f"""
     You are an expert SQL generator. Convert the user's question into a SQLite query.
     Schema:
@@ -64,7 +70,7 @@ def generate_natural_language_response(question: str):
     try:
         sql_completion = client.chat.completions.create(
             messages=[{"role": "user", "content": sql_prompt}],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             temperature=0
         )
         sql_query = sql_completion.choices[0].message.content.strip()
@@ -89,7 +95,7 @@ def generate_natural_language_response(question: str):
         """
         answer_completion = client.chat.completions.create(
             messages=[{"role": "user", "content": answer_prompt}],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
         )
         final_answer = answer_completion.choices[0].message.content
         
@@ -99,7 +105,9 @@ def generate_natural_language_response(question: str):
         }
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {
-            "answer": "Error connecting to LLM or executing query. Make sure GROQ_API_KEY is valid.",
+            "answer": f"Error connecting to LLM or executing query. Details: {str(e)}",
             "data": []
         }
