@@ -4,6 +4,8 @@ from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 
+from core.graph_builder import graph_builder
+
 load_dotenv()
 
 app = FastAPI(title="Graph Data Modeling System")
@@ -25,8 +27,8 @@ def read_root():
 
 @app.get("/graph")
 def get_graph(node_id: str = None):
-    # Stub for returning the graph nodes & edges
-    return {"nodes": [], "edges": []}
+    # Retrieve the constructed graph representations
+    return graph_builder.get_graph_data()
 
 @app.post("/query")
 def submit_query(request: QueryRequest):
