@@ -18,6 +18,12 @@ Table: Orders (order_id, customer_id, product_id, quantity, order_date, status)
 Table: Deliveries (delivery_id, order_id, delivery_date, status)
 Table: Invoices (invoice_id, delivery_id, amount, invoice_date)
 Table: Payments (payment_id, invoice_id, amount, payment_date, status)
+
+Note on relationships: 
+- An order contains a product_id.
+- A delivery links to an order_id. 
+- An invoice links to a delivery_id.
+To find products connected to invoices, you MUST join Products -> Orders -> Deliveries -> Invoices sequentially.
 """
 
 def is_domain_relevant(question: str) -> bool:
@@ -76,6 +82,8 @@ def generate_natural_language_response(question: str):
         sql_query = sql_completion.choices[0].message.content.strip()
         sql_query = re.sub(r'```sql', '', sql_query).replace('```', '').strip()
         
+        print(f"DEBUG SQL GENERATED: {sql_query}")
+
         # 2: Execute SQL
         db_results = execute_sql(sql_query)
         
