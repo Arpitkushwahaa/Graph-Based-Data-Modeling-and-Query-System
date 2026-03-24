@@ -8,65 +8,77 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "retail_graph.db
 class GraphBuilder:
     def __init__(self):
         self.G = nx.DiGraph()
-    
+
     def load_data(self):
         self.G.clear()
         if not os.path.exists(DB_PATH):
             return
 
         conn = sqlite3.connect(DB_PATH)
-        
+
         # Load tables
         try:
-            customers = pd.read_sql("SELECT * FROM Customers", conn)
-            products = pd.read_sql("SELECT * FROM Products", conn)
-            orders = pd.read_sql("SELECT * FROM Orders", conn)
-            deliveries = pd.read_sql("SELECT * FROM Deliveries", conn)
-            invoices = pd.read_sql("SELECT * FROM Invoices", conn)
-            payments = pd.read_sql("SELECT * FROM Payments", conn)
+            customers = pd.read_sql("SELECT businessPartner as customer_id, businessPartnerName as name FROM business_partners", conn)
+            products = pd.read_sql("SELECT product as product_id, productType as category FROM products", conn)
+            orders = pd.read_sql("SELECT salesOrder as order_id, soldToParty as customer_id, totalNetAmount as amount, creationDate as order_date FROM sales_order_headers LIMIT 500", conn)
+            order_items = pd.read_sql("SELECT salesOrder as order_id, material as product_id, netAmount FROM sales_order_items LIMIT 1000", conn)
+            deliveries = pd.read_sql("SELECT deliveryDocument as delivery_id, creationDate as delivery_date FROM outbound_delivery_headers LIMIT 500", conn)
+            delivery_items = pd.read_sql("SELECT deliveryDocument as delivery_id, referenceSdDocument as order_id FROM outbound_delivery_items LIMIT 1000", conn)
+            invoices = pd.read_sql("SELECT billingDocument as invoice_id, totalNetAmount as amount, creationDate as invoice_date FROM billing_document_headers LIMIT 500", conn)
+            invoice_items = pd.read_sql("SELECT billingDocument as invoice_id, referenceSdDocument as order_id FROM billing_document_items LIMIT 1000", conn)
         except Exception as e:
             conn.close()
+            print("Error loading data:", e)
             return
-            
+
         conn.close()
 
         # Add Nodes
         for _, row in customers.iterrows():
-            self.G.add_node(row['customer_id'], type="Customer", Entity="Customer", Name=row['name'], Region=row['region'])
-            
+            if pd.notna(row['customer_id']):
+                self.G.add_node(str(row['customer_id']), type="Customer", Entity="Customer", Name=row['name'])
+                
         for _, row in products.iterrows():
-            self.G.add_node(row['product_id'], type="Product", Entity="Product", Name=row['name'], Category=row['category'], Price=row['price'])
-            
+            if pd.notna(row['product_id']):
+                self.G.add_node(str(row['product_id']), type="Product", Entity="Product", Category=row['category'])
+
         for _, row in orders.iterrows():
-            self.G.add_node(row['order_id'], type="Order", Entity="Order", Quantity=row['quantity'], Date=row['order_date'], Status=row['status'])
-            self.G.add_edge(row['customer_id'], row['order_id'], relationship="PLACED_ORDER")
-            self.G.add_edge(row['order_id'], row['product_id'], relationship="ORDERED_PRODUCT")
-            
+            if pd.notna(row['order_id']):
+                self.G.add_node(str(row['order_id']), type="Order", Entity="Order", Amount=row.get('amount'), Date=row.get('order_date'))
+                if pd.notna(row['customer_id']):
+                    self.G.add_edge(str(row['customer_id']), str(row['order_id']), relationship="PLACED_ORDER")
+
+        for _, row in order_items.iterrows():
+            if pd.notna(row['order_id']) and pd.notna(row['product_id']):
+                self.G.add_edge(str(row['order_id']), str(row['product_id']), relationship="ORDERED_PRODUCT")
+
         for _, row in deliveries.iterrows():
-            self.G.add_node(row['delivery_id'], type="Delivery", Entity="Delivery", Date=row['delivery_date'], Status=row['status'])
-            self.G.add_edge(row['order_id'], row['delivery_id'], relationship="HAS_DELIVERY")
-            
+            if pd.notna(row['delivery_id']):
+                self.G.add_node(str(row['delivery_id']), type="Delivery", Entity="Delivery", Date=row.get('delivery_date'))
+        
+        for _, row in delivery_items.iterrows():
+            if pd.notna(row['delivery_id']) and pd.notna(row['order_id']):
+                self.G.add_edge(str(row['order_id']), str(row['delivery_id']), relationship="HAS_DELIVERY")
+
         for _, row in invoices.iterrows():
-            self.G.add_node(row['invoice_id'], type="Invoice", Entity="Invoice", Amount=row['amount'], Date=row['invoice_date'])
-            self.G.add_edge(row['delivery_id'], row['invoice_id'], relationship="GENERATED_INVOICE")
-            
-        for _, row in payments.iterrows():
-            self.G.add_node(row['payment_id'], type="Payment", Entity="Payment", Amount=row['amount'], Date=row['payment_date'], Status=row['status'])
-            self.G.add_edge(row['invoice_id'], row['payment_id'], relationship="HAS_PAYMENT")
+            if pd.notna(row['invoice_id']):
+                self.G.add_node(str(row['invoice_id']), type="Invoice", Entity="Invoice", Amount=row.get('amount'), Date=row.get('invoice_date'))
+                
+        for _, row in invoice_items.iterrows():
+            if pd.notna(row['invoice_id']) and pd.notna(row['order_id']):
+                self.G.add_edge(str(row['order_id']), str(row['invoice_id']), relationship="GENERATED_INVOICE")
 
     def get_graph_data(self):
         self.load_data()
         nodes = []
         for n, data in self.G.nodes(data=True):
-            # Calculate connections count
             connections = len(list(self.G.successors(n))) + len(list(self.G.predecessors(n)))
             nodes.append({"id": n, "label": data.get('type', 'Unknown'), "Connections": connections, **data})
-            
+
         edges = []
         for u, v, data in self.G.edges(data=True):
             edges.append({"source": u, "target": v, "label": data.get('relationship', 'RELATES_TO')})
-            
+
         return {"nodes": nodes, "links": edges}
 
 graph_builder = GraphBuilder()
-
