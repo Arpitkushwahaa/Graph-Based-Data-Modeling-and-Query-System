@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 
 from core.graph_builder import graph_builder
+from core.llm_engine import generate_natural_language_response
 
 load_dotenv()
 
@@ -32,8 +33,9 @@ def get_graph(node_id: str = None):
 
 @app.post("/query")
 def submit_query(request: QueryRequest):
-    # Stub for natural language query engine
+    # Process through the LLM engine for natural language
+    answer = generate_natural_language_response(request.question)
     return {
-        "answer": "This is a placeholder answer.",
-        "data": []
+        "answer": answer,
+        "data": [] # Stub for raw query records highlighted on the frontend
     }
