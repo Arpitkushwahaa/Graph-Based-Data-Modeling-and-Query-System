@@ -29,7 +29,8 @@ const App: React.FC = () => {
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set());
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   
-  const fgRef = useRef<any>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fgRef = useRef<any>(null);
 
   useEffect(() => {
     axios.get('http://localhost:8000/graph')
@@ -132,7 +133,7 @@ const App: React.FC = () => {
             • "Are there any deliveries without an invoice?"
           </div>
           
-          {messages.map((msg, idx) => (
+          {messages.map((msg: Message, idx: number) => (
             <div key={idx} className={`p-3 rounded-xl w-max max-w-[90%] text-sm ${msg.sender === 'user' ? 'bg-gray-800 text-white self-end ml-auto' : 'bg-gray-100 text-black self-start'}`}>
               {msg.text}
             </div>
