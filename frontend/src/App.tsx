@@ -36,7 +36,8 @@ const App: React.FC = () => {
   const fgRef = useRef<any>(null);
 
   useEffect(() => {
-    axios.get('http://localhost:8000/graph')
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    axios.get(`${apiUrl}/graph`)
       .then(res => setGraphData(res.data))
       .catch(err => console.error("Error fetching graph:", err));
   }, []);
@@ -51,7 +52,8 @@ const App: React.FC = () => {
     setHighlightNodes(new Set()); // Reset highlights on new query
 
     try {
-      const res = await axios.post('http://localhost:8000/query', { question: userMsg });
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const res = await axios.post(`${apiUrl}/query`, { question: userMsg });
       setMessages(prev => [...prev, { sender: 'bot', text: res.data.answer }]);
       if (res.data.data && Array.isArray(res.data.data)) {
         setHighlightNodes(new Set(res.data.data));
